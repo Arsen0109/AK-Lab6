@@ -41,56 +41,42 @@ MODULE_AUTHOR("Neroda Arsen");
 MODULE_DESCRIPTION("Architecture of computers, labwork 6, made by student of group IO-04 Neroda Arsen");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static unsigned int number_of_greets = 4;
+static uint myparam = 1;
 
-module_param(number_of_greets, uint, S_IRUGO);
-
-MODULE_PARM_DESC(number_of_greets, "Number of 'Hello, World!'");
-
-struct event_list {
-    struct list_head list;
-    ktime_t event_time;
+struct my_data {
+	struct list_head list;
+	ktime_t ktime;
 };
 
-static struct list_head event_list_head;
+LIST_HEAD(my_list);
 
-static LIST_HEAD(event_list_head);
-
-void new_event(void);
-
+module_param(myparam, uint, 0644);
+MODULE_PARM_DESC(myparam, "An unsigned integer, specifies how many times to write \"Hello, world \"");
 static int __init hello_init(void)
 {
-    if (number_of_greets == 0 || (number_of_greets >= 5 && number_of_greets <= 10)) {
-        printk(KERN_WARNING "Parameter is 0 or between 5 and 10");  
-    }
-
-    if (number_of_greets > 10) {
-        printk(KERN_ERR "Parameter is too large");
-        return -EINVAL;
-    }
-  
-    int i;
-    for (i = 0; i < number_of_greets; i++) {
-        printk(KERN_EMERG "Hello, World!\n");
-        new_event();
-    }
-  return 0;
+	uint i;
+	if (myparam == 0 || (myparam > 5 && myparam <= 10)) { printk(KERN_WARNING "Warning: myparam is 0 or between 5 and 10 !\n");
+	} else {
+		BUG_ON(myparam > 10);
+	}
+	
+	for (i = 0; i < myparam; i++) {
+		struct my_data *new = 0;
+		new->ktime = ktime_get();
+		list_add_tail(&new->list, &my_list);
+		printk(KERN_INFO "Hello, world!\n");
+	}
+	return 0;
 }
 
-static void __exit hello_exit(void) {
-  struct event_list *md, *tmp;
-  list_for_each_entry_safe(md, tmp, &event_list_head, list) {
-    printk(KERN_EMERG "Time: %lld\n", md->event_time);
-    list_del(&md->list);
-    kfree(md);
-  }
-}
-
-void new_event(void) {
-    struct event_list *element = NULL;
-    element = kmalloc(sizeof(struct event_list), GFP_KERNEL);
-    element->event_time = ktime_get();
-    list_add_tail(&element->list, &event_list_head);
+static void __exit hello_exit(void)
+{
+	struct my_data *md, *tmp;
+	list_for_each_entry_safe(md, tmp, &my_list, list) {
+		printk(KERN_INFO "Time: %lld\n", md->ktime);
+		list_del(&md->list);
+		kfree(md);
+	}
 }
 
 module_init(hello_init);
